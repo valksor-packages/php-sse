@@ -1,6 +1,6 @@
 # Valksor Component: SSE
 
-[![valksor](https://badgen.net/static/org/valksor/green)](https://github.com/valksor) 
+[![valksor](https://badgen.net/static/org/valksor/green)](https://github.com/valksor)
 [![BSD-3-Clause](https://img.shields.io/badge/BSD--3--Clause-green?style=flat)](https://github.com/valksor/php-sse/blob/master/LICENSE)
 [![Coverage Status](https://coveralls.io/repos/github/valksor/php-sse/badge.svg?branch=master)](https://coveralls.io/github/valksor/php-sse?branch=master)
 [![php](https://badgen.net/static/php/>=8.4/purple)](https://www.php.net/releases/8.4/en.php)
@@ -222,16 +222,16 @@ Once the SSE scripts are loaded, you can use the client-side API:
 ```javascript
 // The SSE client is automatically initialized
 // Listen for reload events
-window.addEventListener('sse:reload', () => {
-    console.log('Page will reload...');
+window.addEventListener("sse:reload", () => {
+    console.log("Page will reload...");
 });
 
 // Custom event handling
 const sseClient = window.sseClient;
 
 // Listen for custom events
-sseClient.addEventListener('custom-event', (event) => {
-    console.log('Custom event:', event.data);
+sseClient.addEventListener("custom-event", (event) => {
+    console.log("Custom event:", event.data);
 });
 
 // Send ping messages
@@ -239,7 +239,7 @@ sseClient.ping();
 
 // Check connection status
 if (sseClient.isConnected()) {
-    console.log('SSE connection is active');
+    console.log("SSE connection is active");
 }
 ```
 

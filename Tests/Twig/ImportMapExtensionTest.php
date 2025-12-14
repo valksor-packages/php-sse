@@ -71,7 +71,6 @@ final class ImportMapExtensionTest extends TestCase
 
         $this->assertContains('valksor_sse_importmap_definition', $functionNames);
         $this->assertContains('valksor_sse_importmap_scripts', $functionNames);
-        $this->assertContains('valksor_sse_ping', $functionNames);
     }
 
     protected function setUp(): void

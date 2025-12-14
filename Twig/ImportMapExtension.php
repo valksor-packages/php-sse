@@ -313,13 +313,6 @@ final class ImportMapExtension extends AbstractExtension
                 [ImportMapRuntime::class, 'renderScripts'],   // Delegates to runtime method
                 ['is_safe' => ['html']],                    // Safe for HTML output
             ),
-
-            // SSE server ping function - tests server connectivity
-            new TwigFunction(
-                'valksor_sse_ping',                         // Template function name
-                [ImportMapRuntime::class, 'ping'],          // Delegates to runtime method
-                ['is_safe' => ['html']],                    // Safe for HTML output
-            ),
         ];
     }
 }

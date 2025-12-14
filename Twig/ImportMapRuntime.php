@@ -18,14 +18,12 @@ use Psr\Link\EvolvableLinkProviderInterface;
 use Symfony\Component\Asset\Packages;
 use Symfony\Component\AssetMapper\ImportMap\ImportMapGenerator;
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
-use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\WebLink\EventListener\AddLinkHeaderListener;
 use Symfony\Component\WebLink\GenericLinkProvider;
 use Symfony\Component\WebLink\Link;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Throwable;
+use Valksor\Functions\Iteration\Traits\_JsonEncode;
 
 use function addslashes;
 use function array_key_exists;
@@ -33,9 +31,7 @@ use function array_keys;
 use function class_exists;
 use function count;
 use function htmlspecialchars;
-use function in_array;
 use function is_file;
-use function json_encode;
 use function ltrim;
 use function preg_replace;
 use function sprintf;
@@ -46,7 +42,6 @@ use const ENT_COMPAT;
 use const ENT_NOQUOTES;
 use const ENT_SUBSTITUTE;
 use const JSON_HEX_TAG;
-use const JSON_PRETTY_PRINT;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
 
@@ -67,26 +62,10 @@ final class ImportMapRuntime
         private readonly ImportMapGenerator $importMapGenerator,
         private readonly ?Packages $assetPackages,
         private readonly ?RequestStack $requestStack,
-        private readonly ParameterBagInterface $parameterBag,
-        private readonly HttpClientInterface $client,
     ) {
         $this->charset = 'UTF-8';
         $this->polyfillImportName = false;
         $this->scriptAttributes = [];
-    }
-
-    public function ping(): bool
-    {
-        try {
-            $this->client->request(Request::METHOD_HEAD, $this->getUrl(), [
-                'verify_peer' => false,
-                'verify_host' => false,
-            ]);
-
-            return true;
-        } catch (Throwable) {
-            return false;
-        }
     }
 
     /**
@@ -151,11 +130,11 @@ final class ImportMapRuntime
      *
      * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap
      * @see https://github.com/guybedford/es-module-shims For polyfill details
-     * @see AssetMapper\ImportMap\ImportMapGenerator For underlying importmap processing
+     * @see ImportMapGenerator For underlying importmap processing
      *
      * @example Basic usage with single entry point
      * ```php
-     * $runtime = new ImportMapRuntime($generator, $packages, $requestStack, $parameterBag, $client);
+     * $runtime = new ImportMapRuntime($generator, $packages, $requestStack);
      * $html = $runtime->renderDefinition('app');
      * // Outputs: <script type="importmap">{"imports":{"app":"/assets/app.js"}}</script>
      * ```
@@ -258,7 +237,16 @@ final class ImportMapRuntime
         }
 
         $scriptAttributes = $attributes || $this->scriptAttributes ? ' ' . $this->createAttributesString($attributes) : '';
-        $importMapJson = json_encode(['imports' => $importMap], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
+
+        static $_helper = null;
+
+        if (null === $_helper) {
+            $_helper = new class {
+                use _JsonEncode;
+            };
+        }
+        $importMapJson = $_helper->jsonEncode(['imports' => $importMap], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
+
         $output .= <<<HTML
 
             <script type="importmap"$scriptAttributes>
@@ -474,31 +462,5 @@ final class ImportMapRuntime
         $value = htmlspecialchars($value, $flags, $this->charset);
 
         return (ENT_NOQUOTES & $flags) ? addslashes($value) : $value;
-    }
-
-    private function getPort(): string
-    {
-        static $_port = null;
-
-        if (null === $_port) {
-            $requestPort = $this->requestStack->getMainRequest()?->getPort();
-            $_port = (!in_array($requestPort, [80, 443], true)) ? ':' . $requestPort : '';
-        }
-
-        return $_port;
-    }
-
-    private function getUrl(): string
-    {
-        static $_url = null;
-
-        if (null === $_url) {
-            $_url = 'https://' .
-                $this->parameterBag->get('valksor.sse.domain') .
-                $this->getPort() .
-                $this->parameterBag->get('valksor.sse.path');
-        }
-
-        return $_url;
     }
 }

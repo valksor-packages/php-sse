@@ -9,19 +9,23 @@
 const portMeta = document.querySelector('meta[name="valksor-sse-port"]');
 const pathMeta = document.querySelector('meta[name="valksor-sse-path"]');
 const configuredPort = portMeta ? parseInt(portMeta.content, 10) : undefined;
-const configuredPath = pathMeta ? pathMeta.content.trim() : '';
+const configuredPath = pathMeta ? pathMeta.content.trim() : "";
 
 const endpoint = (() => {
     if (configuredPath) {
-        const origin = window.location.origin || `${window.location.protocol}//${window.location.host}`;
-        return `${origin.replace(/\/$/, '')}${configuredPath}`;
+        const origin =
+            window.location.origin ||
+            `${window.location.protocol}//${window.location.host}`;
+        return `${origin.replace(/\/$/, "")}${configuredPath}`;
     }
 
     if (!configuredPort) {
-        throw new Error('[sse] SSE port or path must be configured via meta tags');
+        throw new Error(
+            "[sse] SSE port or path must be configured via meta tags",
+        );
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
     const host = window.location.hostname;
     return `${protocol}//${host}:${configuredPort}${configuredPath}`;
 })();
@@ -30,9 +34,50 @@ function log(message, ...args) {
     console?.debug?.(`[sse] ${message}`, ...args);
 }
 
-(function bootstrap() {
+let sseInitialized = false;
+
+async function checkSseAvailability(url, timeout = 1000) {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        const response = await fetch(url, {
+            method: "HEAD",
+            cache: "no-store",
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.status !== 200) {
+            return false;
+        }
+
+        const contentType =
+            response.headers.get("content-type")?.toLowerCase()?.trim() ?? "";
+
+        if (!contentType.startsWith("text/event-stream")) {
+            return false;
+        }
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function initializeSse() {
+    if (sseInitialized) {
+        return;
+    }
+    sseInitialized = true;
+
     if (!window.EventSource) {
-        log('eventSource not supported by this browser. Live reload disabled.');
+        return;
+    }
+
+    const isAvailable = await checkSseAvailability(endpoint);
+    if (!isAvailable) {
         return;
     }
 
@@ -41,27 +86,30 @@ function log(message, ...args) {
     const MAX_RECONNECT_ATTEMPTS = 10;
 
     function connect() {
-        const source = new EventSource(endpoint, {withCredentials: false});
+        const source = new EventSource(endpoint, { withCredentials: false });
 
-        source.addEventListener('open', () => {
-            log('connected to sse server at %s', endpoint);
+        source.addEventListener("open", () => {
+            log("connected to sse server at %s", endpoint);
             reconnectAttempts = 0;
         });
 
-        source.addEventListener('error', () => {
+        source.addEventListener("error", () => {
             if (source.readyState === EventSource.CLOSED) {
                 reconnectAttempts++;
-                log('connection to sse server lost (attempt %d/%d). Awaiting retry…',
-                    reconnectAttempts, MAX_RECONNECT_ATTEMPTS);
+                log(
+                    "connection to sse server lost (attempt %d/%d). Awaiting retry…",
+                    reconnectAttempts,
+                    MAX_RECONNECT_ATTEMPTS,
+                );
 
                 if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-                    log('Mmax reconnection attempts reached. Stopping.');
+                    log("Maximum reconnection attempts reached. Stopping.");
                     source.close();
                 }
             }
         });
 
-        source.addEventListener('reload', (event) => {
+        source.addEventListener("reload", (event) => {
             if (reloadScheduled) {
                 return;
             }
@@ -73,22 +121,25 @@ function log(message, ...args) {
                 try {
                     detail = JSON.parse(event.data);
                 } catch (error) {
-                    log('failed to parse reload payload: %o', error);
+                    log("failed to parse reload payload: %o", error);
                 }
             }
 
-            log('change detected%s. Reloading…', detail ? `: ${JSON.stringify(detail)}` : '');
+            log(
+                "change detected%s. Reloading…",
+                detail ? `: ${JSON.stringify(detail)}` : "",
+            );
 
             // Small delay to ensure log is visible and any pending operations complete
             setTimeout(() => window.location.reload(), 100);
         });
 
-        source.addEventListener('ping', () => {
+        source.addEventListener("ping", () => {
             // Keep-alive event from the server. No action needed.
         });
 
         // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener("beforeunload", () => {
             source.close();
         });
 
@@ -96,4 +147,7 @@ function log(message, ...args) {
     }
 
     connect();
-})();
+}
+
+// Initialize SSE
+initializeSse().then(null);

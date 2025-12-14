@@ -16,21 +16,12 @@ use JsonException;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Asset\Packages;
 use Symfony\Component\AssetMapper\ImportMap\ImportMapGenerator;
-use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Valksor\Component\Sse\Twig\ImportMapRuntime;
 
 final class ImportMapRuntimeTest extends TestCase
 {
     private ImportMapRuntime $runtime;
-
-    public function testPingReturnsBoolean(): void
-    {
-        $result = $this->runtime->ping();
-
-        $this->assertIsBool($result);
-    }
 
     /**
      * @throws JsonException
@@ -55,8 +46,6 @@ final class ImportMapRuntimeTest extends TestCase
             $this->createStub(ImportMapGenerator::class),
             $this->createStub(Packages::class),
             $this->createStub(RequestStack::class),
-            $this->createStub(ParameterBagInterface::class),
-            $this->createStub(HttpClientInterface::class),
         );
     }
 }

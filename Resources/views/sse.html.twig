@@ -1,5 +1,3 @@
-{% if valksor_sse_ping() %}
-    <meta name="valksor-sse-port" content="{{ valksor_sse_port }}">
-    <meta name="valksor-sse-path" content="{{ valksor_sse_path }}">
-{% endif %}
+<meta name="valksor-sse-port" content="{{ valksor_sse_port }}">
+<meta name="valksor-sse-path" content="{{ valksor_sse_path }}">
 {{ valksor_sse_importmap_scripts(['valksorsse/sse']) }}
