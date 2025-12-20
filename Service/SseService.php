@@ -17,6 +17,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Valksor\Functions\Iteration\Traits\_JsonDecode;
+use Valksor\Functions\Web\Traits\_ResponseText;
 
 use function array_key_exists;
 use function array_merge;
@@ -566,14 +567,22 @@ final class SseService extends AbstractService
             return;
         }
 
+        static $_helper = null;
+
+        if (null === $_helper) {
+            $_helper = new class {
+                use _ResponseText;
+            };
+        }
+
         if ($path === rtrim($basePath, '/') . '/healthz') {
-            $this->sendResponse($client, Response::HTTP_OK, ['Content-Type: text/plain'], Response::$statusTexts[Response::HTTP_OK]);
+            $this->sendResponse($client, Response::HTTP_OK, ['Content-Type: text/plain'], $_helper->responseText(Response::HTTP_OK));
             fclose($client);
 
             return;
         }
 
-        $this->sendResponse($client, Response::HTTP_NOT_FOUND, ['Content-Type: text/plain'], Response::$statusTexts[Response::HTTP_NOT_FOUND]);
+        $this->sendResponse($client, Response::HTTP_NOT_FOUND, ['Content-Type: text/plain'], $_helper->responseText(Response::HTTP_NOT_FOUND));
         fclose($client);
     }
 
@@ -829,10 +838,9 @@ final class SseService extends AbstractService
     ): array {
         $parts = preg_split('/\s+/', trim($line));
         $method = $parts[0] ?? Request::METHOD_GET;
-        $target = $parts[1] ?? '/';
+        $path = $parts[1] ?? '/';
 
-        $path = $target;
-        $parsed = parse_url($target);
+        $parsed = parse_url($path);
 
         if (false !== $parsed && is_array($parsed) ? array_key_exists('path', $parsed) : isset($parsed['path'])) {
             $path = $parsed['path'];
@@ -880,14 +888,15 @@ final class SseService extends AbstractService
         array $headers,
         string $body = '',
     ): void {
-        $statusText = match ($statusCode) {
-            Response::HTTP_NO_CONTENT => Response::$statusTexts[Response::HTTP_NO_CONTENT],
-            Response::HTTP_NOT_FOUND => Response::$statusTexts[Response::HTTP_NOT_FOUND],
-            Response::HTTP_METHOD_NOT_ALLOWED => Response::$statusTexts[Response::HTTP_METHOD_NOT_ALLOWED],
-            default => Response::$statusTexts[Response::HTTP_OK],
-        };
+        static $_helper = null;
 
-        $response = sprintf("HTTP/1.1 %d %s\r\n", $statusCode, $statusText);
+        if (null === $_helper) {
+            $_helper = new class {
+                use _ResponseText;
+            };
+        }
+
+        $response = sprintf("HTTP/1.1 %d %s\r\n", $statusCode, $_helper->responseText($statusCode));
 
         foreach ($headers as $header) {
             $response .= $header . "\r\n";
