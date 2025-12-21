@@ -527,6 +527,12 @@ When adding new SSE functionality:
 5. Add comprehensive tests
 6. Update documentation with examples
 
+## Support
+
+- **Documentation**: [Full documentation](https://github.com/valksor/php-valksor)
+- **Issues**: [GitHub Issues](https://github.com/valksor/php-valksor/issues) for bug reports and feature requests
+- **Discussions**: [GitHub Discussions](https://github.com/orgs/valksor/discussions/categories/php-valksor) for questions and community support
+
 ## License
 
 This package is licensed under the [BSD-3-Clause License](LICENSE).
