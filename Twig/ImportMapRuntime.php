@@ -23,14 +23,15 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\WebLink\EventListener\AddLinkHeaderListener;
 use Symfony\Component\WebLink\GenericLinkProvider;
 use Symfony\Component\WebLink\Link;
+use Symfony\Contracts\Service\ResetInterface;
 use Valksor\Functions\Iteration\Traits\_JsonEncode;
 
 use function addslashes;
-use function array_key_exists;
 use function array_keys;
 use function class_exists;
 use function count;
 use function htmlspecialchars;
+use function in_array;
 use function is_file;
 use function ltrim;
 use function preg_replace;
@@ -46,14 +47,15 @@ use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
 
 #[AutoconfigureTag('twig.runtime')]
-final class ImportMapRuntime
+final class ImportMapRuntime implements ResetInterface
 {
     private const string DEFAULT_ES_MODULE_SHIMS_POLYFILL_INTEGRITY = 'sha384-ie1x72Xck445i0j4SlNJ5W5iGeL3Dpa0zD48MZopgWsjNB/lt60SuG1iduZGNnJn';
     private const string DEFAULT_ES_MODULE_SHIMS_POLYFILL_URL = 'https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js';
+
+    private const string DEFINITION_RENDERED_ATTR = '_importmap_definition_rendered';
     private const string LOADER_CSS = "document.head.appendChild(Object.assign(document.createElement('link'),{rel:'stylesheet',href:'%s'}))";
     private const string LOADER_JSON = "export default (async()=>await(await fetch('%s')).json())()";
 
-    private bool $definitionRendered = false;
     private readonly string $charset;
     private readonly string|false $polyfillImportName;
     private readonly array $scriptAttributes;
@@ -156,11 +158,11 @@ final class ImportMapRuntime
         string|array $entryPoint,
         array $attributes = [],
     ): string {
-        if ($this->definitionRendered) {
+        if ($this->isDefinitionRendered()) {
             return '';
         }
 
-        $this->definitionRendered = true;
+        $this->markDefinitionRendered();
         $entryPoint = (array) $entryPoint;
 
         if (is_file('../importmap.php')) {
@@ -171,7 +173,7 @@ final class ImportMapRuntime
                     continue;
                 }
 
-                if (!array_key_exists($value, $keys)) {
+                if (!in_array($value, $keys, true)) {
                     unset($entryPoint[$key]);
                 }
             }
@@ -399,6 +401,14 @@ final class ImportMapRuntime
         return $output;
     }
 
+    /**
+     * Reset state for worker mode (FrankenPHP, RoadRunner, etc.).
+     */
+    public function reset(): void
+    {
+        // State is now tracked per-request via request attributes, no reset needed
+    }
+
     private function addWebLinkPreloads(
         Request $request,
         array $webLinks,
@@ -462,5 +472,24 @@ final class ImportMapRuntime
         $value = htmlspecialchars($value, $flags, $this->charset);
 
         return (ENT_NOQUOTES & $flags) ? addslashes($value) : $value;
+    }
+
+    /**
+     * Check if definition was already rendered for the current request.
+     */
+    private function isDefinitionRendered(): bool
+    {
+        $request = $this->requestStack?->getCurrentRequest();
+
+        return $request?->attributes->get(self::DEFINITION_RENDERED_ATTR, false) ?? false;
+    }
+
+    /**
+     * Mark definition as rendered for the current request.
+     */
+    private function markDefinitionRendered(): void
+    {
+        $request = $this->requestStack?->getCurrentRequest();
+        $request?->attributes->set(self::DEFINITION_RENDERED_ATTR, true);
     }
 }
