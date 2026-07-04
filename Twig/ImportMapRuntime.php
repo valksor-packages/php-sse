@@ -40,7 +40,6 @@ use function str_replace;
 use function str_starts_with;
 
 use const ENT_COMPAT;
-use const ENT_NOQUOTES;
 use const ENT_SUBSTITUTE;
 use const JSON_HEX_TAG;
 use const JSON_THROW_ON_ERROR;
@@ -49,15 +48,15 @@ use const JSON_UNESCAPED_SLASHES;
 #[AutoconfigureTag('twig.runtime')]
 final class ImportMapRuntime implements ResetInterface
 {
-    private const string DEFAULT_ES_MODULE_SHIMS_POLYFILL_INTEGRITY = 'sha384-ie1x72Xck445i0j4SlNJ5W5iGeL3Dpa0zD48MZopgWsjNB/lt60SuG1iduZGNnJn';
-    private const string DEFAULT_ES_MODULE_SHIMS_POLYFILL_URL = 'https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js';
-
     private const string DEFINITION_RENDERED_ATTR = '_importmap_definition_rendered';
     private const string LOADER_CSS = "document.head.appendChild(Object.assign(document.createElement('link'),{rel:'stylesheet',href:'%s'}))";
     private const string LOADER_JSON = "export default (async()=>await(await fetch('%s')).json())()";
 
     private readonly string $charset;
-    private readonly string|false $polyfillImportName;
+
+    /**
+     * @var array<string, string|bool>
+     */
     private readonly array $scriptAttributes;
 
     public function __construct(
@@ -66,7 +65,6 @@ final class ImportMapRuntime implements ResetInterface
         private readonly ?RequestStack $requestStack,
     ) {
         $this->charset = 'UTF-8';
-        $this->polyfillImportName = false;
         $this->scriptAttributes = [];
     }
 
@@ -117,12 +115,12 @@ final class ImportMapRuntime implements ResetInterface
      * - Graceful degradation with comprehensive error handling
      * - Support for both ES modules and traditional script loading
      *
-     * @param string|array $entryPoint One or more entry point identifiers to process
-     *                                 Examples: 'app', ['app', 'admin'], '/custom/module'
-     *                                 These are resolved through AssetMapper/importmap system
-     * @param array        $attributes Optional HTML attributes for the generated script tag
-     *                                 Common attributes: 'defer', 'async', 'crossorigin'
-     *                                 Note: 'src' and 'type' are prohibited as they're managed internally
+     * @param string|list<string>        $entryPoint One or more entry point identifiers to process
+     *                                               Examples: 'app', ['app', 'admin'], '/custom/module'
+     *                                               These are resolved through AssetMapper/importmap system
+     * @param array<string, string|bool> $attributes Optional HTML attributes for the generated script tag
+     *                                               Common attributes: 'defer', 'async', 'crossorigin'
+     *                                               Note: 'src' and 'type' are prohibited as they're managed internally
      *
      * @return string Complete HTML block containing importmap definition, polyfills, and preloads
      *                Returns empty string if definition has already been rendered (singleton pattern)
@@ -185,19 +183,12 @@ final class ImportMapRuntime implements ResetInterface
         $importMap = [];
         $modulePreloads = [];
         $webLinks = [];
-        $polyfillPath = null;
 
         foreach ($importMapData as $importName => $data) {
             $path = $data['path'];
 
             if ($this->assetPackages) {
                 $path = $this->assetPackages->getUrl(ltrim($path, '/'));
-            }
-
-            if ($importName === $this->polyfillImportName) {
-                $polyfillPath = $path;
-
-                continue;
             }
 
             if ($this->assetPackages && str_starts_with($importName, '/')) {
@@ -238,7 +229,7 @@ final class ImportMapRuntime implements ResetInterface
             $this->addWebLinkPreloads($request, $webLinks);
         }
 
-        $scriptAttributes = $attributes || $this->scriptAttributes ? ' ' . $this->createAttributesString($attributes) : '';
+        $scriptAttributes = $attributes ? ' ' . $this->createAttributesString($attributes) : '';
 
         static $_helper = null;
 
@@ -255,36 +246,6 @@ final class ImportMapRuntime implements ResetInterface
             $importMapJson
             </script>
             HTML;
-
-        if (false !== $this->polyfillImportName && null === $polyfillPath) {
-            if ('es-module-shims' !== $this->polyfillImportName) {
-                throw new InvalidArgumentException(sprintf('The JavaScript module polyfill was not found in your import map. Either disable the polyfill or run "php bin/console importmap:require "%s"" to install it.', $this->polyfillImportName));
-            }
-
-            $polyfillPath = self::DEFAULT_ES_MODULE_SHIMS_POLYFILL_URL;
-        }
-
-        if ($polyfillPath) {
-            $polyfillAttributes = $attributes + $this->scriptAttributes;
-
-            if (self::DEFAULT_ES_MODULE_SHIMS_POLYFILL_URL === $polyfillPath) {
-                $polyfillAttributes = [
-                    'crossorigin' => 'anonymous',
-                    'integrity' => self::DEFAULT_ES_MODULE_SHIMS_POLYFILL_INTEGRITY,
-                ] + $polyfillAttributes;
-            }
-
-            $output .= <<<HTML
-                <script$scriptAttributes>
-                if (!HTMLScriptElement.supports || !HTMLScriptElement.supports('importmap')) (function () {
-                    const script = document.createElement('script');
-                    script.src = '{$this->escapeAttributeValue($polyfillPath, ENT_NOQUOTES)}';
-                    {$this->createAttributesString($polyfillAttributes, "script.setAttribute('%s', '%s');", "\n    ", ENT_NOQUOTES)}
-                    document.head.appendChild(script);
-                })();
-                </script>
-                HTML;
-        }
 
         foreach ($modulePreloads as $url) {
             $url = $this->escapeAttributeValue($url);
@@ -337,12 +298,12 @@ final class ImportMapRuntime implements ResetInterface
      * - Safe handling of special characters in module names
      * - Prevention of malicious module name injection
      *
-     * @param string|array $entryPoint One or more entry point identifiers to import
-     *                                 Examples: 'app', ['app', 'admin'], '/modules/dashboard'
-     *                                 These correspond to keys in the importmap definition
-     * @param array        $attributes Optional HTML attributes for the generated script tag
-     *                                 Common attributes: 'defer', 'async', 'crossorigin'
-     *                                 Note: 'src' and 'type' are managed internally and prohibited
+     * @param string|list<string>        $entryPoint One or more entry point identifiers to import
+     *                                               Examples: 'app', ['app', 'admin'], '/modules/dashboard'
+     *                                               These correspond to keys in the importmap definition
+     * @param array<string, string|bool> $attributes Optional HTML attributes for the generated script tag
+     *                                               Common attributes: 'defer', 'async', 'crossorigin'
+     *                                               Note: 'src' and 'type' are managed internally and prohibited
      *
      * @return string HTML script element containing module import statements
      *                Returns empty string if no entry points are provided
@@ -388,7 +349,7 @@ final class ImportMapRuntime implements ResetInterface
             return '';
         }
 
-        $scriptAttributes = $attributes || $this->scriptAttributes ? ' ' . $this->createAttributesString($attributes) : '';
+        $scriptAttributes = $attributes ? ' ' . $this->createAttributesString($attributes) : '';
         $output = "\n<script type=\"module\"$scriptAttributes>";
 
         foreach ($entryPoint as $entryPointName) {
@@ -409,6 +370,9 @@ final class ImportMapRuntime implements ResetInterface
         // State is now tracked per-request via request attributes, no reset needed
     }
 
+    /**
+     * @param array<string, string> $webLinks
+     */
     private function addWebLinkPreloads(
         Request $request,
         array $webLinks,
@@ -437,6 +401,9 @@ final class ImportMapRuntime implements ResetInterface
         $request->attributes->set('_links', $linkProvider);
     }
 
+    /**
+     * @param array<string, string|bool> $attributes
+     */
     private function createAttributesString(
         array $attributes,
         string $pattern = '%s="%s"',
@@ -469,9 +436,7 @@ final class ImportMapRuntime implements ResetInterface
         string $value,
         int $flags = ENT_COMPAT | ENT_SUBSTITUTE,
     ): string {
-        $value = htmlspecialchars($value, $flags, $this->charset);
-
-        return (ENT_NOQUOTES & $flags) ? addslashes($value) : $value;
+        return htmlspecialchars($value, $flags, $this->charset);
     }
 
     /**

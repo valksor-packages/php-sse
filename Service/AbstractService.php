@@ -208,6 +208,11 @@ abstract class AbstractService implements ServiceInterface
     }
 
     /**
+     * Get the unique service name identifier used for PID file naming and process tracking.
+     */
+    abstract public static function getServiceName(): string;
+
+    /**
      * Get the unique service name identifier.
      *
      * This abstract method requires all concrete service implementations to
@@ -301,7 +306,7 @@ abstract class AbstractService implements ServiceInterface
 
         $previousPid = (int) $previousPid;
 
-        if (!posix_kill($previousPid, 0)) {
+        if (!$this->isPidAlive($previousPid)) {
             $io->text('[valksor] removing stale PID file...');
             @unlink($pidFile);
 
@@ -316,7 +321,7 @@ abstract class AbstractService implements ServiceInterface
             $sleepInterval = 500000;
 
             while ($waitTime < $timeout) {
-                if (!posix_kill($previousPid, 0)) {
+                if (!$this->isPidAlive($previousPid)) {
                     $io->success(sprintf('[valksor] previous %s process (PID %d) terminated successfully.', $serviceName, $previousPid));
                     sleep(1);
 
@@ -343,6 +348,9 @@ abstract class AbstractService implements ServiceInterface
         return $this->parameterBag->get(sprintf('%s.%s', ValksorBundle::VALKSOR, $name));
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function parseCommaSeparatedList(
         string $input,
     ): array {
@@ -467,8 +475,26 @@ abstract class AbstractService implements ServiceInterface
         file_put_contents($this->createPidFilePath(static::getServiceName()), (string) getmypid());
     }
 
+    /**
+     * @return list<string>
+     */
     protected function getSseProcessesToKill(): array
     {
         return [];
+    }
+
+    /**
+     * Check whether a process with the given PID is currently alive.
+     *
+     * The result reflects live operating-system state and can change between
+     * successive calls (the process may terminate in the meantime), so it must
+     * not be memoized.
+     *
+     * @phpstan-impure
+     */
+    private function isPidAlive(
+        int $pid,
+    ): bool {
+        return posix_kill($pid, 0);
     }
 }

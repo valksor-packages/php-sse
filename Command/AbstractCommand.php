@@ -184,14 +184,14 @@ abstract class AbstractCommand extends BundleAbstractCommand
      * - Argument validation handled by target commands
      * - Proper access control through Symfony's security system
      *
-     * @param string          $commandName The name of the command to execute
-     *                                     Must be registered in the console application
-     *                                     Example: 'valksor:sse', 'valksor:hot-reload'
-     * @param OutputInterface $output      Output interface for command output and logging
-     *                                     Typically the same output as the parent command
-     * @param array           $arguments   Optional arguments and options for the sub-command
-     *                                     Format: ['option' => 'value', 'argument' => 'value']
-     *                                     Avoid dashes in keys, use option/argument names directly
+     * @param string               $commandName The name of the command to execute
+     *                                          Must be registered in the console application
+     *                                          Example: 'valksor:sse', 'valksor:hot-reload'
+     * @param OutputInterface      $output      Output interface for command output and logging
+     *                                          Typically the same output as the parent command
+     * @param array<string, mixed> $arguments   Optional arguments and options for the sub-command
+     *                                          Format: ['option' => 'value', 'argument' => 'value']
+     *                                          Avoid dashes in keys, use option/argument names directly
      *
      * @return int Exit code from the executed command
      *             0 for success, non-zero for failure following Unix conventions

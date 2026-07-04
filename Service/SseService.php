@@ -30,7 +30,6 @@ use function file_get_contents;
 use function function_exists;
 use function fwrite;
 use function in_array;
-use function is_array;
 use function is_file;
 use function json_encode;
 use function microtime;
@@ -222,7 +221,7 @@ final class SseService extends AbstractService
      * - JSON encoding error handling for broadcast events
      * - Socket error recovery and logging
      *
-     * @param array $config Optional configuration overrides (currently unused)
+     * @param array<string, mixed> $config Optional configuration overrides (currently unused)
      *
      * @return int Command exit code (Command::SUCCESS or Command::FAILURE)
      *
@@ -423,6 +422,9 @@ final class SseService extends AbstractService
         return 'sse';
     }
 
+    /**
+     * @return list<string>
+     */
     protected function getSseProcessesToKill(): array
     {
         return [self::getServiceName()];
@@ -650,8 +652,8 @@ final class SseService extends AbstractService
      * - Double newline terminates each event
      * - Compatible with all modern browsers
      *
-     * @param string $event   Event type identifier (e.g., 'reload', 'ping')
-     * @param array  $payload Event data payload to be JSON-encoded
+     * @param string               $event   Event type identifier (e.g., 'reload', 'ping')
+     * @param array<string, mixed> $payload Event data payload to be JSON-encoded
      *
      * @throws JsonException When JSON serialization of payload fails
      *
@@ -825,6 +827,9 @@ final class SseService extends AbstractService
         return [$server, $usingTls];
     }
 
+    /**
+     * @param resource $client
+     */
     private function handleClientRead(
         $client,
     ): void {
@@ -833,6 +838,9 @@ final class SseService extends AbstractService
         }
     }
 
+    /**
+     * @return array{0: string, 1: string}
+     */
     private function parseRequestLine(
         string $line,
     ): array {
@@ -842,7 +850,7 @@ final class SseService extends AbstractService
 
         $parsed = parse_url($path);
 
-        if (false !== $parsed && is_array($parsed) ? array_key_exists('path', $parsed) : isset($parsed['path'])) {
+        if (false !== $parsed && array_key_exists('path', $parsed)) {
             $path = $parsed['path'];
         }
 
@@ -858,6 +866,9 @@ final class SseService extends AbstractService
         }
     }
 
+    /**
+     * @param resource $client
+     */
     private function removeClient(
         $client,
     ): void {
@@ -882,6 +893,10 @@ final class SseService extends AbstractService
         $this->nextKeepAliveAt = microtime(true) + self::KEEP_ALIVE_INTERVAL;
     }
 
+    /**
+     * @param resource     $client
+     * @param list<string> $headers
+     */
     private function sendResponse(
         $client,
         int $statusCode,
@@ -907,6 +922,9 @@ final class SseService extends AbstractService
         fwrite($client, $response);
     }
 
+    /**
+     * @param resource $client
+     */
     private function upgradeToSse(
         $client,
     ): void {
