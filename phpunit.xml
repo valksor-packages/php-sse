@@ -8,6 +8,12 @@
     beStrictAboutOutputDuringTests="true"
     beStrictAboutCoverageMetadata="true"
     controlGarbageCollector="true"
+    failOnWarning="true"
+    failOnNotice="true"
+    failOnDeprecation="true"
+    displayDetailsOnTestsThatTriggerWarnings="true"
+    displayDetailsOnTestsThatTriggerNotices="true"
+    displayDetailsOnTestsThatTriggerDeprecations="true"
 >
 
     <php>
