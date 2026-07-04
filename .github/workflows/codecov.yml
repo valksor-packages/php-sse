@@ -9,7 +9,7 @@ permissions:
 jobs:
     coverage:
         name: Upload coverage to Coveralls
-        runs-on: self-mini
+        runs-on: self-data
 
         steps:
             -   name: Checkout code
