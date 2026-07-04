@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">
 <coverage line-rate="0.35984095427435" branch-rate="0" lines-covered="181" lines-valid="503" branches-covered="0" branches-valid="0" complexity="167" version="0.4" timestamp="0">
   <sources>
     <source>/var/www/html/valksor/src/Valksor/Component/Sse</source>
